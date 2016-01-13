@@ -14,38 +14,48 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import json
 import os
-import tempfile
+import zlib
+
+from apiclient import errors
+from oauth2client import client
+import six
 
 
 class FakeGoogleObjectInsertExecute(object):
 
+    def __init__(self, *args, **kwargs):
+        self.container_name = kwargs['bucket']
+
     def execute(self, *args, **kwargs):
+        if self.container_name == 'gcs_api_failure':
+            raise errors.Error
         return {u'md5Hash': u'Z2NzY2luZGVybWQ1'}
 
 
 class FakeGoogleObjectListExecute(object):
 
     def __init__(self, *args, **kwargs):
-        self.bucket_name = kwargs['bucket']
-        self.prefix = kwargs['prefix']
+        self.container_name = kwargs['bucket']
 
     def execute(self, *args, **kwargs):
-        bucket_dir = tempfile.gettempdir() + '/' + self.bucket_name
-        fake_body = []
-        for f in os.listdir(bucket_dir):
-            try:
-                f.index(self.prefix)
-                fake_body.append({'name': f})
-            except Exception:
-                pass
+        if self.container_name == 'gcs_connection_failure':
+            raise Exception
 
-        return {'items': fake_body}
+        return {'items': [{'name': 'backup_001'},
+                          {'name': 'backup_002'},
+                          {'name': 'backup_003'}]}
 
 
 class FakeGoogleBucketListExecute(object):
 
+    def __init__(self, *args, **kwargs):
+        self.container_name = kwargs['prefix']
+
     def execute(self, *args, **kwargs):
+        if self.container_name == 'gcs_oauth2_failure':
+            raise client.Error
         return {u'items': [{u'name': u'gcscinderbucket'},
                            {u'name': u'gcsbucket'}]}
 
@@ -64,14 +74,7 @@ class FakeMediaObject(object):
 class FakeGoogleObject(object):
 
     def insert(self, *args, **kwargs):
-        object_path = (tempfile.gettempdir() + '/' + kwargs['bucket'] + '/' +
-                       kwargs['name'])
-        kwargs['media_body']._fd.getvalue()
-        with open(object_path, 'wb') as object_file:
-            kwargs['media_body']._fd.seek(0)
-            object_file.write(kwargs['media_body']._fd.read())
-
-        return FakeGoogleObjectInsertExecute()
+        return FakeGoogleObjectInsertExecute(*args, **kwargs)
 
     def get_media(self, *args, **kwargs):
         return FakeMediaObject(kwargs['bucket'], kwargs['object'])
@@ -83,7 +86,7 @@ class FakeGoogleObject(object):
 class FakeGoogleBucket(object):
 
     def list(self, *args, **kwargs):
-        return FakeGoogleBucketListExecute()
+        return FakeGoogleBucketListExecute(*args, **kwargs)
 
     def insert(self, *args, **kwargs):
         return FakeGoogleBucketInsertExecute()
@@ -122,10 +125,29 @@ class FakeGoogleCredentials(object):
 
 class FakeGoogleMediaIoBaseDownload(object):
     def __init__(self, fh, req, chunksize=None):
-        object_path = (tempfile.gettempdir() + '/' + req.bucket_name + '/' +
-                       req.object_name)
-        with open(object_path, 'rb') as object_file:
-            fh.write(object_file.read())
+
+        if 'metadata' in req.object_name:
+            metadata = {}
+            metadata['version'] = '1.0.0'
+            metadata['backup_id'] = 123
+            metadata['volume_id'] = 123
+            metadata['backup_name'] = 'fake backup'
+            metadata['backup_description'] = 'fake backup description'
+            metadata['created_at'] = '2016-01-09 11:20:54,805'
+            metadata['objects'] = [{
+                'backup_001': {'compression': 'zlib', 'length': 10,
+                               'offset': 0},
+                'backup_002': {'compression': 'zlib', 'length': 10,
+                               'offset': 10},
+                'backup_003': {'compression': 'zlib', 'length': 10,
+                               'offset': 20}
+            }]
+            metadata_json = json.dumps(metadata, sort_keys=True, indent=2)
+            if six.PY3:
+                metadata_json = metadata_json.encode('utf-8')
+            fh.write(metadata_json)
+        else:
+            fh.write(zlib.compress(os.urandom(1024 * 1024)))
 
     def next_chunk(self, **kwargs):
         return (100, True)
