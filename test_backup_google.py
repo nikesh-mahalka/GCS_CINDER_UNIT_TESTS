@@ -127,7 +127,7 @@ class GoogleBackupDriverTestCase(test.TestCase):
         self.volume_file.seek(0)
         backup = objects.Backup.get_by_id(self.ctxt, 123)
         result = service.backup(backup, self.volume_file)
-        self.assertEqual(None, result)
+        self.assertIsNone(result)
 
     def test_backup_uncompressed(self):
         volume_id = '2b9f10a3-42b4-4fdf-b316-000000ceb039'
