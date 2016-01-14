@@ -96,9 +96,8 @@ class GoogleBackupDriverTestCase(test.TestCase):
         return db.backup_create(self.ctxt, backup)['id']
 
     def setUp(self):
-        self.flags(backup_gcs_bucket='gcscinderbucket')
-        self.flags(backup_gcs_credential_file=None)
         super(GoogleBackupDriverTestCase, self).setUp()
+        self.flags(backup_gcs_bucket='gcscinderbucket')
         self.ctxt = context.get_admin_context()
         self.stubs.Set(hashlib, 'md5', fake_md5)
         self.stubs.Set(google_dr.discovery,
