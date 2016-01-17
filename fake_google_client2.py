@@ -1,6 +1,6 @@
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
-# Copyright (C) 2015 Vedams
-# Copyright (C) 2015 Google
+# Copyright (C) 2016 Vedams Inc.
+# Copyright (C) 2016 Google Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may

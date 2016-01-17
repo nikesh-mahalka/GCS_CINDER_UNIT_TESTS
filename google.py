@@ -3,8 +3,8 @@
 # Copyright (c) 2015 EMC Corporation
 # Copyright (C) 2015 Kevin Fox <kevin@efox.cc>
 # Copyright (C) 2015 Tom Barron <tpb@dyncloud.net>
-# Copyright (C) 2015 Biarca
-# Copyright (C) 2015 Google
+# Copyright (C) 2016 Vedams Inc.
+# Copyright (C) 2016 Google Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -48,7 +48,6 @@ LOG = logging.getLogger(__name__)
 
 gcsbackup_service_opts = [
     cfg.StrOpt('backup_gcs_bucket',
-               default=None,
                help='The GCS bucket to use.'),
     cfg.IntOpt('backup_gcs_object_size',
                default=52428800,
@@ -79,10 +78,8 @@ gcsbackup_service_opts = [
                default='NEARLINE',
                help='Storage class of GCS bucket.'),
     cfg.StrOpt('backup_gcs_credential_file',
-               default=None,
                help='Absolute path of GCS service account credential file.'),
     cfg.StrOpt('backup_gcs_project_id',
-               default='gcsbackup',
                help='Owner project id for GCS bucket.'),
     cfg.StrOpt('backup_gcs_user_agent',
                default='gcscinder',
@@ -117,17 +114,19 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
     """Provides backup, restore and delete of backup objects within GCS."""
 
     def __init__(self, context, db_driver=None):
+        check_gcs_options()
+        backup_bucket = CONF.backup_gcs_bucket
+        backup_credential = CONF.backup_gcs_credential_file
+        self.gcs_project_id = CONF.backup_gcs_project_id
         chunk_size_bytes = CONF.backup_gcs_object_size
         sha_block_size_bytes = CONF.backup_gcs_block_size
-        backup_bucket = CONF.backup_gcs_bucket
         enable_progress_timer = CONF.backup_gcs_enable_progress_timer
         super(GoogleBackupDriver, self).__init__(context, chunk_size_bytes,
                                                  sha_block_size_bytes,
                                                  backup_bucket,
                                                  enable_progress_timer,
                                                  db_driver)
-        credentials = client.GoogleCredentials.from_stream(
-            CONF.backup_gcs_credential_file)
+        credentials = client.GoogleCredentials.from_stream(backup_credential)
         self.reader_chunk_size = CONF.backup_gcs_reader_chunk_size
         self.writer_chunk_size = CONF.backup_gcs_writer_chunk_size
         self.bucket_location = CONF.backup_gcs_bucket_location
@@ -139,23 +138,17 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
                                     'v1',
                                     http=http_user_agent,
                                     credentials=credentials)
-        self.gcs_project_id = CONF.backup_gcs_project_id
-        if self.writer_chunk_size == -1:
-            self.resumable = False
-        else:
-            self.resumable = True
+        self.resumable = self.writer_chunk_size != -1
 
     @gcs_logger
     def put_container(self, bucket):
         """Create the bucket if not exists."""
-        buck_name_list_dict = self.conn.buckets().list(
+        buckets = self.conn.buckets().list(
             project=self.gcs_project_id,
             prefix=bucket,
             fields="items(name)").execute(
-                num_retries=self.num_retries).get('items')
-        if not buck_name_list_dict or not any(
-                buck_name_dict.get('name') == bucket
-                for buck_name_dict in buck_name_list_dict):
+                num_retries=self.num_retries).get('items', [])
+        if not any(b.get('name') == bucket for b in buckets):
             self.conn.buckets().insert(
                 project=self.gcs_project_id,
                 body={'name': bucket,
@@ -169,12 +162,9 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
         obj_list_dict = self.conn.objects().list(
             bucket=bucket,
             fields="items(name)",
-            prefix=prefix).execute(num_retries=self.num_retries).get('items')
-        if obj_list_dict:
-            gcs_object_names = [obj_dict.get('name') for obj_dict
-                                in obj_list_dict]
-            return gcs_object_names
-        return []
+            prefix=prefix).execute(num_retries=self.num_retries).get(
+            'items', [])
+        return [obj_dict.get('name') for obj_dict in obj_list_dict]
 
     def get_object_writer(self, bucket, object_name, extra_metadata=None):
         """Return a writer object.
@@ -205,10 +195,18 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
             object=object_name).execute(num_retries=self.num_retries)
 
     def _generate_object_name_prefix(self, backup):
-        """Generates a GCS backup object name prefix."""
+        """Generates a GCS backup object name prefix.
+
+        prefix = volume_volid/timestamp/az_saz_backup_bakid
+
+        volid is volume id.
+        timestamp is time in UTC with format of YearMonthDateHourMinuteSecond.
+        saz is storage_availability_zone.
+        bakid is backup id for volid.
+        """
         az = 'az_%s' % self.az
-        backup_name = '%s_backup_%s' % (az, backup['id'])
-        volume = 'volume_%s' % (backup['volume_id'])
+        backup_name = '%s_backup_%s' % (az, backup.id)
+        volume = 'volume_%s' % (backup.volume_id)
         timestamp = timeutils.utcnow().strftime("%Y%m%d%H%M%S")
         prefix = volume + '/' + timestamp + '/' + backup_name
         LOG.debug('generate_object_name_prefix: %s', prefix)
@@ -216,11 +214,11 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
 
     def update_container_name(self, backup, bucket):
         """Use the bucket name as provided - don't update."""
-        return bucket
+        pass
 
     def get_extra_metadata(self, backup, volume):
         """GCS driver does not use any extra metadata."""
-        return None
+        pass
 
 
 class GoogleObjectWriter(object):
@@ -256,6 +254,9 @@ class GoogleObjectWriter(object):
             media_body=media).execute(num_retries=self.num_retries)
         etag = resp['md5Hash']
         md5 = hashlib.md5(self.data).digest()
+        if six.PY3:
+            md5 = md5.encode('utf-8')
+            etag = etag.encode('utf-8')
         md5 = base64.b64encode(md5)
         if etag != md5:
             err = _('MD5 of object: %(object_name)s before: '
@@ -290,23 +291,18 @@ class GoogleObjectReader(object):
     def read(self):
         req = self.conn.objects().get_media(
             bucket=self.bucket,
-            object=self.object_name,)
+            object=self.object_name)
         fh = six.BytesIO()
         downloader = GoogleMediaIoBaseDownload(
             fh, req, chunksize=self.chunk_size)
         done = False
         while not done:
             status, done = downloader.next_chunk(num_retries=self.num_retries)
-        LOG.debug('Object download Complete.')
+        LOG.debug('GCS Object download Complete.')
         return fh.getvalue()
 
 
 class GoogleMediaIoBaseDownload(http.MediaIoBaseDownload):
-
-    @http.util.positional(3)
-    def __init__(self, fd, request, chunksize=None):
-        super(GoogleMediaIoBaseDownload, self).__init__(fd, request,
-                                                        chunksize=chunksize)
 
     @http.util.positional(1)
     def next_chunk(self, num_retries=None):
@@ -320,7 +316,8 @@ class GoogleMediaIoBaseDownload(http.MediaIoBaseDownload):
                 self._sleep(self._rand() * 2 ** retry_num)
 
             resp, content = gcs_http.request(self._uri, headers=headers)
-            if resp.status < 500 and str(resp.status) not in error_codes:
+            if resp.status < 500 and (six.text_type(resp.status)
+                                      not in error_codes):
                 break
         if resp.status in [200, 206]:
             if 'content-location' in resp and (
@@ -343,6 +340,19 @@ class GoogleMediaIoBaseDownload(http.MediaIoBaseDownload):
 
         else:
             raise http.HttpError(resp, content, uri=self._uri)
+
+
+def check_gcs_options():
+    required_options = ['backup_gcs_bucket', 'backup_gcs_credential_file',
+                        'backup_gcs_project_id']
+    unset_options = []
+    for option in required_options:
+        if not getattr(CONF, option, None):
+            unset_options.append(option)
+    if unset_options:
+        msg = _('Unset gcs options: %s') % unset_options
+        LOG.error(msg)
+        raise exception.InvalidInput(reason=msg)
 
 
 def get_backup_driver(context):
