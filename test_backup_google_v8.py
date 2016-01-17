@@ -47,7 +47,7 @@ class FakeMD5(object):
     @classmethod
     def digest(self):
         return 'gcscindermd5'
-    
+
     @classmethod
     def hexdigest(self):
         return 'gcscindermd5'
@@ -62,6 +62,7 @@ class FakeObjectName(object):
         prefix = volume + '_' + backup_name
         return prefix
 
+
 def gcs_client(func):
     @mock.patch.object(google_dr.client, 'GoogleCredentials',
                        fake_google_client.FakeGoogleCredentials)
@@ -74,6 +75,7 @@ def gcs_client(func):
         return func(self, *args, **kwargs)
 
     return func_wrapper
+
 
 def gcs_client2(func):
     @mock.patch.object(google_dr.client, 'GoogleCredentials',
@@ -91,14 +93,18 @@ def gcs_client2(func):
 
     return func_wrapper
 
+
 def fake_backup_metadata(self, backup, object_meta):
     raise exception.BackupDriverException(message=_('fake'))
+
 
 def fake_delete(self, backup):
     raise exception.BackupOperationError()
 
+
 def _fake_delete_object(self, bucket_name, object_name):
     raise AssertionError('delete_object method should not be called.')
+
 
 class GoogleBackupDriverTestCase(test.TestCase):
     """Test Case for Google"""
@@ -287,8 +293,8 @@ class GoogleBackupDriverTestCase(test.TestCase):
 
         # Create incremental backup with no change to contents
         deltabackup = self._create_backup_db_entry(volume_id=volume_id,
-                                              container=container_name,
-                                              parent_id=backup.id)
+                                                   container=container_name,
+                                                   parent_id=backup.id)
         service2 = google_dr.GoogleBackupDriver(self.ctxt)
         self.volume_file.seek(0)
         service2.backup(deltabackup, self.volume_file)
@@ -413,7 +419,7 @@ class GoogleBackupDriverTestCase(test.TestCase):
         """
         volume_id = '020d9142-339c-4876-a445-000000f1520c'
 
-        backup  = self._create_backup_db_entry(volume_id=volume_id)
+        backup = self._create_backup_db_entry(volume_id=volume_id)
         self.flags(backup_compression_algorithm='none')
         service = google_dr.GoogleBackupDriver(self.ctxt)
         self.volume_file.seek(0)
@@ -465,6 +471,7 @@ class GoogleBackupDriverTestCase(test.TestCase):
             self.assertRaises(exception.GCSConnectionFailure,
                               service.restore,
                               backup, volume_id, volume_file)
+
     @gcs_client2
     def test_restore_delta(self):
         volume_id = '04d83506-bcf7-4ff5-9c65-00000051bd2e'

@@ -117,7 +117,7 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
         check_gcs_options()
         backup_bucket = CONF.backup_gcs_bucket
         backup_credential = CONF.backup_gcs_credential_file
-        self.gcs_project_id = CONF.backup_gcs_project_id 
+        self.gcs_project_id = CONF.backup_gcs_project_id
         chunk_size_bytes = CONF.backup_gcs_object_size
         sha_block_size_bytes = CONF.backup_gcs_block_size
         enable_progress_timer = CONF.backup_gcs_enable_progress_timer
@@ -214,11 +214,12 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
 
     def update_container_name(self, backup, bucket):
         """Use the bucket name as provided - don't update."""
-        return bucket
+        pass
 
     def get_extra_metadata(self, backup, volume):
         """GCS driver does not use any extra metadata."""
         pass
+
 
 class GoogleObjectWriter(object):
     def __init__(self, bucket, object_name, conn, writer_chunk_size,
@@ -352,6 +353,7 @@ def check_gcs_options():
         msg = _('Unset gcs options: %s') % unset_options
         LOG.error(msg)
         raise exception.InvalidInput(reason=msg)
+
 
 def get_backup_driver(context):
     return GoogleBackupDriver(context)
