@@ -195,7 +195,15 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
             object=object_name).execute(num_retries=self.num_retries)
 
     def _generate_object_name_prefix(self, backup):
-        """Generates a GCS backup object name prefix."""
+        """Generates a GCS backup object name prefix.
+
+        prefix = volume_volid/timestamp/az_saz_backup_bakid
+
+        volid is volume id.
+        timestamp is time in UTC with format of YearMonthDateHourMinuteSecond.
+        saz is storage_availability_zone.
+        bakid is backup id for volid.
+        """
         az = 'az_%s' % self.az
         backup_name = '%s_backup_%s' % (az, backup.id)
         volume = 'volume_%s' % (backup.volume_id)
