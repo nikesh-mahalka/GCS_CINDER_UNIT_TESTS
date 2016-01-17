@@ -262,7 +262,6 @@ class GoogleBackupDriverTestCase(test.TestCase):
     def test_backup_shafile(self):
         volume_id = '6465dad4-22af-48f7-8a1a-000000218907'
 
-        # Raise a pseudo exception.BackupDriverException.
         container_name = self.temp_dir.replace(tempfile.gettempdir() + '/',
                                                '', 1)
         backup = self._create_backup_db_entry(volume_id=volume_id,
@@ -281,7 +280,6 @@ class GoogleBackupDriverTestCase(test.TestCase):
     def test_backup_cmp_shafiles(self):
         volume_id = '1a99ac67-c534-4fe3-b472-0000001785e2'
 
-        # Raise a pseudo exception.BackupDriverException.
         container_name = self.temp_dir.replace(tempfile.gettempdir() + '/',
                                                '', 1)
         backup = self._create_backup_db_entry(volume_id=volume_id,
@@ -311,7 +309,6 @@ class GoogleBackupDriverTestCase(test.TestCase):
     def test_backup_delta_two_objects_change(self):
         volume_id = '30dab288-265a-4583-9abe-000000d42c67'
 
-        # Raise a pseudo exception.BackupDriverException.
         self.flags(backup_gcs_object_size=8 * 1024)
         self.flags(backup_gcs_block_size=1024)
 
@@ -349,7 +346,6 @@ class GoogleBackupDriverTestCase(test.TestCase):
     def test_backup_delta_two_blocks_in_object_change(self):
         volume_id = 'b943e84f-aa67-4331-9ab2-000000cf19ba'
 
-        # Raise a pseudo exception.BackupDriverException.
         self.flags(backup_gcs_object_size=8 * 1024)
         self.flags(backup_gcs_block_size=1024)
 
