@@ -3,8 +3,8 @@
 # Copyright (c) 2015 EMC Corporation
 # Copyright (C) 2015 Kevin Fox <kevin@efox.cc>
 # Copyright (C) 2015 Tom Barron <tpb@dyncloud.net>
-# Copyright (C) 2016 Vedams
-# Copyright (C) 2016 Google
+# Copyright (C) 2016 Vedams Inc.
+# Copyright (C) 2016 Google Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
