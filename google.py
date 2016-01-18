@@ -143,10 +143,8 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
     def check_gcs_options(self):
         required_options = ('backup_gcs_bucket', 'backup_gcs_credential_file',
                             'backup_gcs_project_id')
-        unset_options = []
-        for option in required_options:
-            if not getattr(CONF, option, None):
-                unset_options.append(option)
+        unset_options = [opt for opt in required_options
+                         if not getattr(CONF, opt, None)]
         if unset_options:
             msg = _('Unset gcs options: %s') % unset_options
             LOG.error(msg)
