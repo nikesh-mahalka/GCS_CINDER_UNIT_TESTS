@@ -3,8 +3,8 @@
 # Copyright (c) 2015 EMC Corporation
 # Copyright (C) 2015 Kevin Fox <kevin@efox.cc>
 # Copyright (C) 2015 Tom Barron <tpb@dyncloud.net>
-# Copyright (C) 2016 Vedams Inc.
-# Copyright (C) 2016 Google Inc.
+# Copyright (C) 2016 Vedams
+# Copyright (C) 2016 Google
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -114,7 +114,7 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
     """Provides backup, restore and delete of backup objects within GCS."""
 
     def __init__(self, context, db_driver=None):
-        check_gcs_options()
+        self.check_gcs_options()
         backup_bucket = CONF.backup_gcs_bucket
         backup_credential = CONF.backup_gcs_credential_file
         self.gcs_project_id = CONF.backup_gcs_project_id
@@ -139,6 +139,18 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
                                     http=http_user_agent,
                                     credentials=credentials)
         self.resumable = self.writer_chunk_size != -1
+
+    def check_gcs_options(self):
+        required_options = ('backup_gcs_bucket', 'backup_gcs_credential_file',
+                            'backup_gcs_project_id')
+        unset_options = []
+        for option in required_options:
+            if not getattr(CONF, option, None):
+                unset_options.append(option)
+        if unset_options:
+            msg = _('Unset gcs options: %s') % unset_options
+            LOG.error(msg)
+            raise exception.InvalidInput(reason=msg)
 
     @gcs_logger
     def put_container(self, bucket):
@@ -214,11 +226,11 @@ class GoogleBackupDriver(chunkeddriver.ChunkedBackupDriver):
 
     def update_container_name(self, backup, bucket):
         """Use the bucket name as provided - don't update."""
-        pass
+        return
 
     def get_extra_metadata(self, backup, volume):
         """GCS driver does not use any extra metadata."""
-        pass
+        return
 
 
 class GoogleObjectWriter(object):
@@ -340,19 +352,6 @@ class GoogleMediaIoBaseDownload(http.MediaIoBaseDownload):
 
         else:
             raise http.HttpError(resp, content, uri=self._uri)
-
-
-def check_gcs_options():
-    required_options = ['backup_gcs_bucket', 'backup_gcs_credential_file',
-                        'backup_gcs_project_id']
-    unset_options = []
-    for option in required_options:
-        if not getattr(CONF, option, None):
-            unset_options.append(option)
-    if unset_options:
-        msg = _('Unset gcs options: %s') % unset_options
-        LOG.error(msg)
-        raise exception.InvalidInput(reason=msg)
 
 
 def get_backup_driver(context):
