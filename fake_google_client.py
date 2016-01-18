@@ -20,6 +20,7 @@ import zlib
 
 from apiclient import errors
 from oauth2client import client
+from oslo_utils import units
 import six
 
 
@@ -147,7 +148,7 @@ class FakeGoogleMediaIoBaseDownload(object):
                 metadata_json = metadata_json.encode('utf-8')
             fh.write(metadata_json)
         else:
-            fh.write(zlib.compress(os.urandom(1024 * 1024)))
+            fh.write(zlib.compress(os.urandom(units.Mi)))
 
     def next_chunk(self, **kwargs):
         return (100, True)

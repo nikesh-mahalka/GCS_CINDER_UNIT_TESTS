@@ -28,6 +28,7 @@ import tempfile
 import zlib
 
 import mock
+from oslo_utils import units
 
 from cinder.backup.drivers import google as google_dr
 from cinder import context
@@ -152,7 +153,7 @@ class GoogleBackupDriverTestCase(test.TestCase):
         # Remove tempdir.
         self.addCleanup(shutil.rmtree, self.temp_dir)
         for _i in range(0, 64):
-            self.volume_file.write(os.urandom(1024))
+            self.volume_file.write(os.urandom(units.Ki))
 
     @gcs_client
     def test_backup(self):
@@ -273,7 +274,7 @@ class GoogleBackupDriverTestCase(test.TestCase):
 
         # Verify sha contents
         content1 = service._read_sha256file(backup)
-        self.assertEqual(64 * 1024 / content1['chunk_size'],
+        self.assertEqual(64 * units.Ki / content1['chunk_size'],
                          len(content1['sha256s']))
 
     @gcs_client2
@@ -309,8 +310,8 @@ class GoogleBackupDriverTestCase(test.TestCase):
     def test_backup_delta_two_objects_change(self):
         volume_id = '30dab288-265a-4583-9abe-000000d42c67'
 
-        self.flags(backup_gcs_object_size=8 * 1024)
-        self.flags(backup_gcs_block_size=1024)
+        self.flags(backup_gcs_object_size=8 * units.Ki)
+        self.flags(backup_gcs_block_size=units.Ki)
 
         container_name = self.temp_dir.replace(tempfile.gettempdir() + '/',
                                                '', 1)
@@ -322,10 +323,10 @@ class GoogleBackupDriverTestCase(test.TestCase):
         self.assertEqual(container_name, backup.container)
 
         # Create incremental backup with no change to contents
-        self.volume_file.seek(2 * 8 * 1024)
-        self.volume_file.write(os.urandom(1024))
-        self.volume_file.seek(4 * 8 * 1024)
-        self.volume_file.write(os.urandom(1024))
+        self.volume_file.seek(2 * 8 * units.Ki)
+        self.volume_file.write(os.urandom(units.Ki))
+        self.volume_file.seek(4 * 8 * units.Ki)
+        self.volume_file.write(os.urandom(units.Ki))
 
         deltabackup = self._create_backup_db_entry(volume_id=volume_id,
                                                    container=container_name,
@@ -346,8 +347,8 @@ class GoogleBackupDriverTestCase(test.TestCase):
     def test_backup_delta_two_blocks_in_object_change(self):
         volume_id = 'b943e84f-aa67-4331-9ab2-000000cf19ba'
 
-        self.flags(backup_gcs_object_size=8 * 1024)
-        self.flags(backup_gcs_block_size=1024)
+        self.flags(backup_gcs_object_size=8 * units.Ki)
+        self.flags(backup_gcs_block_size=units.Ki)
 
         container_name = self.temp_dir.replace(tempfile.gettempdir() + '/',
                                                '', 1)
@@ -360,10 +361,10 @@ class GoogleBackupDriverTestCase(test.TestCase):
         self.assertEqual(container_name, backup.container)
 
         # Create incremental backup with no change to contents
-        self.volume_file.seek(16 * 1024)
-        self.volume_file.write(os.urandom(1024))
-        self.volume_file.seek(20 * 1024)
-        self.volume_file.write(os.urandom(1024))
+        self.volume_file.seek(16 * units.Ki)
+        self.volume_file.write(os.urandom(units.Ki))
+        self.volume_file.seek(20 * units.Ki)
+        self.volume_file.write(os.urandom(units.Ki))
 
         deltabackup = self._create_backup_db_entry(volume_id=volume_id,
                                                    container=container_name,
@@ -471,8 +472,8 @@ class GoogleBackupDriverTestCase(test.TestCase):
     @gcs_client2
     def test_restore_delta(self):
         volume_id = '04d83506-bcf7-4ff5-9c65-00000051bd2e'
-        self.flags(backup_gcs_object_size=8 * 1024)
-        self.flags(backup_gcs_block_size=1024)
+        self.flags(backup_gcs_object_size=8 * units.Ki)
+        self.flags(backup_gcs_block_size=units.Ki)
         container_name = self.temp_dir.replace(tempfile.gettempdir() + '/',
                                                '', 1)
         backup = self._create_backup_db_entry(volume_id=volume_id,
@@ -482,10 +483,10 @@ class GoogleBackupDriverTestCase(test.TestCase):
         service1.backup(backup, self.volume_file)
 
         # Create incremental backup with no change to contents
-        self.volume_file.seek(16 * 1024)
-        self.volume_file.write(os.urandom(1024))
-        self.volume_file.seek(20 * 1024)
-        self.volume_file.write(os.urandom(1024))
+        self.volume_file.seek(16 * units.Ki)
+        self.volume_file.write(os.urandom(units.Ki))
+        self.volume_file.seek(20 * units.Ki)
+        self.volume_file.write(os.urandom(units.Ki))
 
         deltabackup = self._create_backup_db_entry(volume_id=volume_id,
                                                    container=container_name,
